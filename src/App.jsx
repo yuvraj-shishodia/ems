@@ -10,11 +10,15 @@ const App = () => {
   //   getLocalStorage();
   // },);
 
+const [user, setUser] = useState(null)
 
+const handleLogin = (email, password) => {
+
+}
 
   return (
     <>
-      <Login />
+      {!user ? <Login /> : ''}
       {/* <EmployeeDashboard /> */}
       {/* <AdminDashboard /> */}
     </>
