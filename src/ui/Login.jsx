@@ -1,18 +1,45 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import Field from "./Field";
-export default function Login({ onLogin }) {
-  const [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+const oauthErrors = {
+  expired:
+    "This sign-in expired or started in another browser. Please try again.",
+  cancelled: "Sign-in was cancelled. You can try again or use email.",
+  existing:
+    "An account already uses this email. Sign in with your original method.",
+  unavailable:
+    "This account is inactive. Contact your workspace administrator.",
+  failed: "Social sign-in could not be completed. Try again or use email.",
+};
+export default function Login({ onLogin, signup = false }) {
+  const [error, setError] = useState(
+      () =>
+        oauthErrors[new URLSearchParams(location.search).get("authError")] ||
+        "",
+    ),
+    [busy, setBusy] = useState(false),
+    [providers, setProviders] = useState([]);
+  useEffect(() => {
+    api("/auth/config")
+      .then((data) => setProviders(data.providers))
+      .catch(() => {});
+  }, []);
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setError("");
+    const values = Object.fromEntries(new FormData(e.currentTarget));
+    if (signup && values.password !== values.confirm) {
+      setError("Passwords do not match. Re-enter them.");
+      setBusy(false);
+      return;
+    }
     try {
-      const data = await api("/login", {
+      const data = await api(signup ? "/signup" : "/login", {
         method: "POST",
-        body: Object.fromEntries(new FormData(e.currentTarget)),
+        body: values,
       });
+      history.replaceState(null, "", "/");
       onLogin(data.user);
     } catch (err) {
       setError(err.message);
@@ -48,15 +75,58 @@ export default function Login({ onLogin }) {
       </section>
       <section className="login-panel">
         <div className="login-form">
-          <span className="eyebrow">YOUR WORKSPACE AWAITS</span>
-          <h2>Welcome back.</h2>
-          <p className="muted">Sign in to see what’s moving.</p>
+          <span className="eyebrow">
+            {signup ? "A FRESH START" : "YOUR WORKSPACE AWAITS"}
+          </span>
+          <h2>{signup ? "Room for good work." : "Welcome back."}</h2>
+          <p className="muted">
+            {signup
+              ? "Create your account. Make the workspace yours."
+              : "Sign in to see what’s moving."}
+          </p>
+          <div className="social-buttons">
+            {providers.map((provider) => (
+              <button
+                key={provider.id}
+                disabled={!provider.enabled || busy}
+                className="secondary full"
+                onClick={() => {
+                  location.assign("/api/oauth/" + provider.id + "/start");
+                }}
+              >
+                Continue with {provider.name}
+              </button>
+            ))}
+          </div>
+          {providers.length > 0 && !providers.some((p) => p.enabled) && (
+            <p className="social-note">
+              Social sign-in is not available here yet. Continue with email
+              below.
+            </p>
+          )}
+          <div className="auth-divider">
+            <span>
+              or {signup ? "create an account" : "sign in"} with email
+            </span>
+          </div>
           <form onSubmit={submit}>
+            {signup && (
+              <Field label="Your full name">
+                <input
+                  name="name"
+                  autoComplete="name"
+                  maxLength={80}
+                  required
+                  placeholder="e.g. Alex Morgan"
+                />
+              </Field>
+            )}
             <Field label="Email address">
               <input
                 name="email"
                 type="email"
                 autoComplete="username"
+                maxLength={200}
                 required
                 placeholder="you@company.com"
               />
@@ -65,26 +135,55 @@ export default function Login({ onLogin }) {
               <input
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={signup ? "new-password" : "current-password"}
+                minLength={signup ? 10 : undefined}
                 maxLength={128}
                 required
-                placeholder="Enter your password"
+                placeholder={
+                  signup ? "At least 10 characters" : "Enter your password"
+                }
               />
             </Field>
+            {signup && (
+              <Field label="Confirm password">
+                <input
+                  name="confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={10}
+                  maxLength={128}
+                  required
+                />
+              </Field>
+            )}
             {error && (
               <p role="alert" className="error">
                 {error}
               </p>
             )}
             <button className="primary full" disabled={busy}>
-              {busy ? "Signing in…" : "Sign in to workspace →"}
+              {busy
+                ? "Please wait…"
+                : signup
+                  ? "Create account →"
+                  : "Sign in to workspace →"}
             </button>
           </form>
           <p className="login-note">
-            Need access? Ask your workspace administrator.
+            {signup ? "Already have an account?" : "New to EMS?"}{" "}
+            <a className="inline-link" href={signup ? "/login" : "/signup"}>
+              {signup ? "Sign in" : "Create your workspace"}
+            </a>
           </p>
+          {!signup && (
+            <p className="login-note">
+              Joining an existing team? Your administrator can add your account.
+            </p>
+          )}
         </div>
-        <span className="login-bottom">EMS / A FOCUSED WAY TO WORK</span>
+        <span className="login-bottom">
+          EMS / PEOPLE. PRIORITIES. PROGRESS.
+        </span>
       </section>
     </main>
   );

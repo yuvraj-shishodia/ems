@@ -30,7 +30,7 @@ docker volume create ems-data
 docker run --env-file .env -e NODE_ENV=production -e HOST=0.0.0.0 -e DATABASE_PATH=/app/data/ems.sqlite -p 3001:3001 -v ems-data:/app/data ems
 ```
 
-Place HTTPS in front of this container. For a local HTTP-only container preview, override `NODE_ENV=development`; this is not a public deployment configuration. The image runs as an unprivileged user and requires no runtime npm packages. Docker configuration is supplied but has not been executed in this environment.
+Place HTTPS in front of this container. For a local HTTP-only container preview, override `NODE_ENV=development`; this is not a public deployment configuration. The image runs as an unprivileged user and installs production dependencies, including jose for Google token verification. Docker configuration is supplied but has not been executed in this environment.
 
 ## Operations
 
@@ -44,3 +44,7 @@ Place HTTPS in front of this container. For a local HTTP-only container preview,
 ## Limits before real organizational use
 
 Add schema migrations, administrator recovery, independently managed production accounts, monitoring, a backup retention policy and a shared rate limiter. Evaluate MFA and audit retention. This is a portfolio application, not a multi-tenant HR platform.
+
+## Signup and Google sign-in
+
+Set `APP_URL` to the public HTTPS origin. Configure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` through host secrets and register the exact `/api/oauth/google/callback` redirect URI. See [onboarding](ONBOARDING.md). Email signup is usable without Google credentials. No SMTP configuration is needed. One account belongs to one workspace; no public email verification or recovery is included.

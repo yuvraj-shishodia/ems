@@ -22,3 +22,7 @@ Task content: `{title,description,assignee,due,priority,category}`. Due dates ar
 Employee transitions: `new -> active -> completed` or `new -> active -> failed`. The UI calls `failed` **Blocked**. Administrators can reopen tasks. Status updates compare the previous state to avoid silently overwriting concurrent changes.
 
 Errors return `{error: "Actionable message"}` with an appropriate HTTP status. Unexpected errors return a generic 500 without stack traces. Employee emails are unique and normalized to lowercase. Deactivation revokes sessions and retains task/history records.
+
+## Signup and onboarding
+
+See [onboarding endpoints and Google configuration](ONBOARDING.md). `/api/signup` creates a new administrator and private workspace; `/api/setup` completes profile/workspace setup. All existing workspace, task, employee and activity endpoints now enforce the session workspace. IDs from another workspace cannot be used to read or change its records.

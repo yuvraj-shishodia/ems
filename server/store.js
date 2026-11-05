@@ -19,6 +19,7 @@ export function openStore(path) {
  CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL,assignee INTEGER NOT NULL REFERENCES users(id),due TEXT NOT NULL,priority TEXT NOT NULL CHECK(priority IN ('low','medium','high')),status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','active','completed','failed')),category TEXT NOT NULL,created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id),expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS activity(id INTEGER PRIMARY KEY,user_id INTEGER NOT NULL REFERENCES users(id),message TEXT NOT NULL,created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+  migrate(db);
   return db;
 }
 export function seed(db, password) {
@@ -103,4 +104,57 @@ export function seed(db, password) {
     1,
     "Workspace created. Your team is ready to go.",
   );
+}
+
+// Additive migration preserves the original demo workspace and its existing data.
+export function migrate(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS workspaces(id INTEGER PRIMARY KEY,name TEXT NOT NULL,slug TEXT NOT NULL UNIQUE,setup_complete INTEGER NOT NULL DEFAULT 0,created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+ INSERT OR IGNORE INTO workspaces(id,name,slug,setup_complete) VALUES(1,'Workplace','workplace',1);
+ CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,applied TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+  if (
+    !db.prepare("SELECT version FROM schema_migrations WHERE version=2").get()
+  ) {
+    db.exec("PRAGMA foreign_keys=OFF; BEGIN IMMEDIATE");
+    try {
+      for (const table of ["users", "tasks", "activity"])
+        db.exec(
+          `ALTER TABLE ${table} ADD COLUMN workspace_id INTEGER NOT NULL DEFAULT 1 REFERENCES workspaces(id)`,
+        );
+      db.exec(
+        `ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1; ALTER TABLE users ADD COLUMN onboarding_complete INTEGER NOT NULL DEFAULT 1; INSERT INTO schema_migrations(version) VALUES(2); COMMIT`,
+      );
+    } catch (e) {
+      db.exec("ROLLBACK");
+      throw e;
+    } finally {
+      db.exec("PRAGMA foreign_keys=ON");
+    }
+    if (db.prepare("PRAGMA foreign_key_check").all().length)
+      throw new Error("Database migration found inconsistent references.");
+  }
+  if (
+    !db
+      .prepare("PRAGMA table_info(users)")
+      .all()
+      .some((c) => c.name === "password_enabled")
+  )
+    db.exec(
+      "ALTER TABLE users ADD COLUMN password_enabled INTEGER NOT NULL DEFAULT 1",
+    );
+  db.exec(`CREATE INDEX IF NOT EXISTS users_workspace ON users(workspace_id); CREATE INDEX IF NOT EXISTS tasks_workspace ON tasks(workspace_id); CREATE INDEX IF NOT EXISTS activity_workspace ON activity(workspace_id);
+ CREATE TABLE IF NOT EXISTS oauth_identities(provider TEXT NOT NULL,subject TEXT NOT NULL,user_id INTEGER NOT NULL REFERENCES users(id),PRIMARY KEY(provider,subject));
+ CREATE TABLE IF NOT EXISTS oauth_states(hash TEXT PRIMARY KEY,provider TEXT NOT NULL,binding TEXT NOT NULL,verifier TEXT NOT NULL,nonce TEXT NOT NULL,expires INTEGER NOT NULL);
+ CREATE TRIGGER IF NOT EXISTS task_workspace_insert BEFORE INSERT ON tasks WHEN NOT EXISTS(SELECT 1 FROM users WHERE id=NEW.assignee AND workspace_id=NEW.workspace_id) BEGIN SELECT RAISE(ABORT,'Task assignee must belong to workspace'); END;
+ CREATE TRIGGER IF NOT EXISTS task_workspace_update BEFORE UPDATE OF assignee,workspace_id ON tasks WHEN NOT EXISTS(SELECT 1 FROM users WHERE id=NEW.assignee AND workspace_id=NEW.workspace_id) BEGIN SELECT RAISE(ABORT,'Task assignee must belong to workspace'); END;`);
+}
+export function transaction(db, fn) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const value = fn();
+    db.exec("COMMIT");
+    return value;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }

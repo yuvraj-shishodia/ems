@@ -4,6 +4,14 @@ A full-stack employee task workspace with separate administrator and employee ex
 
 ![EMS workspace overview](docs/screenshots/overview.png)
 
+## Signup and workspace onboarding
+
+Open `/signup` to create an administrator account with email/password. Then complete the two-step setup: your profile, followed by workspace name and a unique address. Unfinished setup resumes after signing in again. Each workspace has its own employees, tasks and activity, enforced by the backend. The original demo accounts remain together in the Workplace workspace. Each email address belongs to one workspace.
+
+Google sign-in is implemented and becomes available when your own Google OAuth client is configured. See [Google setup](docs/ONBOARDING.md). Without credentials, the button is visibly unavailable and email signup works normally. No email service is used; signup does not verify email ownership.
+
+![EMS workspace setup](docs/screenshots/setup.png)
+
 ## What it does
 
 - Administrator: add employees, deactivate/reactivate access, create/edit/reassign/delete tasks, reopen tasks, inspect team workload and recent activity.
@@ -77,9 +85,9 @@ The original tutorial components under `src/components`, `src/context`, `src/uti
 
 ### Deliberate choices
 
-SQLite keeps a recruiter’s local setup small and makes the demo inexpensive to host as one process. SQL uses bound parameters; foreign keys and status checks protect integrity. A larger multi-instance service would need a shared database, migrations, distributed rate limiting and an explicit organization model.
+SQLite keeps a recruiter’s local setup small and makes the demo inexpensive to host as one process. SQL uses bound parameters; foreign keys and status checks protect integrity. A larger multi-instance service would need a shared database, migrations, distributed rate limiting and operational monitoring.
 
-The backend uses Node's HTTP module rather than Express to keep runtime dependencies minimal. Sessions live in the database, passwords use salted scrypt hashes, and cookies are HttpOnly and SameSite=Strict. Secure cookies are enabled in production, which requires HTTPS. State-changing endpoints require a same-origin request header, and login attempts are rate limited per direct client IP. The UI is never the authorization boundary.
+The backend uses Node's HTTP module rather than Express. Google ID tokens are verified with the jose library. Sessions live in the database, passwords use salted scrypt hashes, and cookies are HttpOnly and SameSite=Strict. Secure cookies are enabled in production, which requires HTTPS. State-changing endpoints require a same-origin request header, and login attempts are rate limited per direct client IP. The UI is never the authorization boundary.
 
 ## Production build
 
@@ -98,4 +106,4 @@ Open http://127.0.0.1:3001 for a local production-build preview. For public host
 4. Sign back in as admin to see the progress metric and activity update.
 5. Discuss session revocation, SQL parameter binding, task state transitions and the SQLite scaling tradeoff.
 
-This application manages employee task assignments, not payroll, attendance or HR records. Public signup and email-based password recovery are outside this demo’s scope.
+This application manages employee task assignments, not payroll, attendance or HR records. Email invitations, access requests and password recovery are outside this change’s scope. Google and email/password signup are supported. One email address belongs to one account and one workspace; workspace switching and linking sign-in methods are not included.

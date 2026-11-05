@@ -51,3 +51,7 @@ Not verified: manual screen-reader output, iOS Safari, forced-colors mode, actua
 ## Verdict
 
 Approve for the inspected portfolio-demo surfaces: no known HIGH findings remain. The manual assistive-technology/browser coverage listed above is not claimed.
+
+## Signup and onboarding follow-up
+
+Added matching signup and two-step setup screens using the existing type, surfaces and action tokens. Desktop signup and workspace setup, plus 390px setup, were rendered and inspected. Axe A/AA checks passed on signup and workspace setup. The Google button explains its unavailable state when client credentials are absent; it does not pretend to authenticate. Error states cover duplicate emails, password mismatch and a taken workspace address. Native forms and labels remain keyboard operable. Browser tests also verify resuming unfinished setup after reload.

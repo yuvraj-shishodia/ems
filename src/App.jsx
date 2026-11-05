@@ -1,3 +1,4 @@
+import Setup from "./ui/Setup";
 import Field from "./ui/Field";
 import Modal from "./ui/Modal";
 import Login from "./ui/Login";
@@ -77,7 +78,15 @@ export default function App() {
     }
   }, [user]);
   useEffect(() => {
-    document.title = `EMS · ${page[0].toUpperCase() + page.slice(1)}`;
+    document.title =
+      "EMS · " +
+      (!user
+        ? location.pathname === "/signup"
+          ? "Create your workspace"
+          : "Sign in"
+        : !user.onboarding_complete || !user.workspace.setup_complete
+          ? "Workspace setup"
+          : page[0].toUpperCase() + page.slice(1));
     if (user) document.getElementById("main")?.focus({ preventScroll: true });
   }, [page, user]);
   useEffect(() => {
@@ -213,10 +222,10 @@ export default function App() {
         Opening your workspace…
       </main>
     );
-  if (!user)
+  if (!user || ["/signup", "/login"].includes(location.pathname))
     return (
       <>
-        <Login onLogin={setUser} />
+        <Login signup={location.pathname === "/signup"} onLogin={setUser} />
         {error && (
           <div className="connection-error" role="alert">
             {error}
@@ -225,6 +234,8 @@ export default function App() {
         )}
       </>
     );
+  if (!user.onboarding_complete || !user.workspace.setup_complete)
+    return <Setup user={user} onComplete={setUser} onLogout={logout} />;
   return (
     <div className="workspace">
       <a href="#main" className="skip">
@@ -237,7 +248,7 @@ export default function App() {
         <div className="workspace-label">
           <span className="workspace-monogram">W</span>
           <div>
-            <strong>Workplace</strong>
+            <strong>{user.workspace.name}</strong>
             <small>Team workspace</small>
           </div>
         </div>
@@ -733,64 +744,73 @@ export default function App() {
                 </dl>
               </section>
               <section className="panel settings-card">
-                <h2>Change password</h2>
+                <h2>
+                  {user.password_enabled ? "Change password" : "Social sign-in"}
+                </h2>
                 <p className="muted">
                   Choose at least 10 characters. Other sessions will be signed
                   out.
                 </p>
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget;
-                    const values = Object.fromEntries(new FormData(form));
-                    if (values.password !== values.confirm) {
-                      setError("New passwords do not match. Re-enter them.");
-                      return;
-                    }
-                    if (
-                      await mutate(
-                        "/password",
-                        "POST",
-                        values,
-                        "Password updated.",
+                {user.password_enabled ? (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const values = Object.fromEntries(new FormData(form));
+                      if (values.password !== values.confirm) {
+                        setError("New passwords do not match. Re-enter them.");
+                        return;
+                      }
+                      if (
+                        await mutate(
+                          "/password",
+                          "POST",
+                          values,
+                          "Password updated.",
+                        )
                       )
-                    )
-                      form.reset();
-                  }}
-                >
-                  <Field label="Current password">
-                    <input
-                      name="current"
-                      type="password"
-                      autoComplete="current-password"
-                      maxLength={128}
-                      required
-                    />
-                  </Field>
-                  <Field label="New password">
-                    <input
-                      name="password"
-                      type="password"
-                      minLength={10}
-                      maxLength={128}
-                      autoComplete="new-password"
-                      required
-                    />
-                  </Field>
-                  <Field label="Confirm new password">
-                    <input
-                      name="confirm"
-                      type="password"
-                      minLength={10}
-                      maxLength={128}
-                      autoComplete="new-password"
-                      required
-                    />
-                  </Field>
-                  <button className="primary" disabled={busy}>
-                    Update password
-                  </button>
-                </form>
+                        form.reset();
+                    }}
+                  >
+                    <Field label="Current password">
+                      <input
+                        name="current"
+                        type="password"
+                        autoComplete="current-password"
+                        maxLength={128}
+                        required
+                      />
+                    </Field>
+                    <Field label="New password">
+                      <input
+                        name="password"
+                        type="password"
+                        minLength={10}
+                        maxLength={128}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </Field>
+                    <Field label="Confirm new password">
+                      <input
+                        name="confirm"
+                        type="password"
+                        minLength={10}
+                        maxLength={128}
+                        autoComplete="new-password"
+                        required
+                      />
+                    </Field>
+                    <button className="primary" disabled={busy}>
+                      Update password
+                    </button>
+                  </form>
+                ) : (
+                  <p className="muted">
+                    Use the same Google account you used when signing up. Your
+                    password stays with that provider.
+                  </p>
+                )}
               </section>
             </div>
           )}
