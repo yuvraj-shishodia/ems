@@ -1,0 +1,12 @@
+node_modules
+dist
+package-lock.json
+src/components
+src/context
+src/utils
+src/App.css
+public/vite.svg
+src/assets
+data
+test-results
+playwright-report
